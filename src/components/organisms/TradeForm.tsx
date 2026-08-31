@@ -54,12 +54,12 @@ export function TradeForm({
         </label>
 
         <label>
-          Instrument
+          Symbol
           <input
             type="text"
-            value={formValues.instrument}
-            onChange={(event) => onFieldChange('instrument', event.target.value)}
-            placeholder="EUR/USD"
+            value={formValues.symbol}
+            onChange={(event) => onFieldChange('symbol', event.target.value)}
+            placeholder="AAPL"
           />
         </label>
 
@@ -70,8 +70,8 @@ export function TradeForm({
               value={formValues.side}
               onChange={(event) => onFieldChange('side', event.target.value as TradeSide)}
             >
-              <option value="Buy">Buy</option>
-              <option value="Sell">Sell</option>
+              <option value="BUY">Buy</option>
+              <option value="SELL">Sell</option>
             </select>
           </label>
 

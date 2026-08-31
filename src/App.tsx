@@ -3,6 +3,7 @@ import './App.css'
 import { MetricCard } from './components/molecules/MetricCard'
 import { TradeForm } from './components/organisms/TradeForm'
 import { TradeTable } from './components/organisms/TradeTable'
+import { useTrades } from './hooks/useTrades'
 import {
   calculateNotional,
   emptyForm,
@@ -12,41 +13,24 @@ import {
   type Trade,
   type TradeFormValues,
   type TradeStatus,
+  type SortField,
+  type SortDirection,
 } from './types/trade'
 
 function App() {
-  const [trades, setTrades] = useState<Trade[]>(initialTrades)
+  const { trades, isLoading, createTrade, updateTrade, cancelTrade, fetchTrades } =
+    useTrades(initialTrades)
   const [formValues, setFormValues] = useState<TradeFormValues>(emptyForm)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [feedMessage, setFeedMessage] = useState('Market feed connected')
   const [statusFilter, setStatusFilter] = useState<'All' | TradeStatus>('All')
   const [searchText, setSearchText] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [sortField, setSortField] = useState<SortField | null>(null)
+  const [sortDirection, setSortDirection] = useState<SortDirection | null>(null)
 
   useEffect(() => {
     const timer = window.setInterval(() => {
-      setTrades((currentTrades) => {
-        const eligibleTrades = currentTrades.filter((trade) => trade.status !== 'Cancelled')
-
-        if (eligibleTrades.length === 0) {
-          return currentTrades
-        }
-
-        const targetTrade = eligibleTrades[Math.floor(Math.random() * eligibleTrades.length)]
-        const nextPrice = Number(
-          Math.max(0.01, targetTrade.price + (Math.random() - 0.5) * 1.5).toFixed(2),
-        )
-
-        return currentTrades.map((trade) =>
-          trade.id === targetTrade.id
-            ? {
-                ...trade,
-                price: nextPrice,
-                updatedAt: new Date().toISOString(),
-              }
-            : trade,
-        )
-      })
-
       setFeedMessage(
         `Live update at ${new Date().toLocaleTimeString([], {
           hour: '2-digit',
@@ -61,9 +45,9 @@ function App() {
 
   const metrics = useMemo(() => {
     const totalTrades = trades.length
-    const activeTrades = trades.filter((trade) => trade.status !== 'Cancelled')
+    const activeTrades = trades.filter((trade) => trade.status !== 'CANCELLED')
     const openNotional = activeTrades.reduce((sum, trade) => sum + calculateNotional(trade), 0)
-    const cancelledTrades = trades.filter((trade) => trade.status === 'Cancelled').length
+    const cancelledTrades = trades.filter((trade) => trade.status === 'CANCELLED').length
 
     return {
       totalTrades,
@@ -76,18 +60,89 @@ function App() {
   const visibleTrades = useMemo(() => {
     const query = searchText.trim().toLowerCase()
 
-    return trades.filter((trade) => {
+    let filtered = trades.filter((trade) => {
       const matchesStatus = statusFilter === 'All' || trade.status === statusFilter
       const matchesSearch =
         query.length === 0 ||
-        [trade.id, trade.trader, trade.sales, trade.counterparty, trade.instrument]
+        [trade.id, trade.trader, trade.sales, trade.counterparty, trade.symbol]
           .join(' ')
           .toLowerCase()
           .includes(query)
 
       return matchesStatus && matchesSearch
     })
-  }, [searchText, statusFilter, trades])
+
+    // Apply sorting
+    if (sortField && sortDirection) {
+      filtered = [...filtered].sort((a, b) => {
+        let aVal: string | number | null = null
+        let bVal: string | number | null = null
+
+        switch (sortField) {
+          case 'id':
+            aVal = a.id
+            bVal = b.id
+            break
+          case 'symbol':
+            aVal = a.symbol
+            bVal = b.symbol
+            break
+          case 'side':
+            aVal = a.side
+            bVal = b.side
+            break
+          case 'quantity':
+            aVal = a.quantity
+            bVal = b.quantity
+            break
+          case 'price':
+            aVal = a.price
+            bVal = b.price
+            break
+          case 'notional':
+            aVal = calculateNotional(a)
+            bVal = calculateNotional(b)
+            break
+          case 'trader':
+            aVal = a.trader
+            bVal = b.trader
+            break
+          case 'status':
+            aVal = a.status
+            bVal = b.status
+            break
+          case 'tradeDate':
+            aVal = new Date(a.tradeDate).getTime()
+            bVal = new Date(b.tradeDate).getTime()
+            break
+        }
+
+        if (aVal === null || bVal === null) return 0
+
+        if (typeof aVal === 'string' && typeof bVal === 'string') {
+          return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal)
+        }
+
+        if (typeof aVal === 'number' && typeof bVal === 'number') {
+          return sortDirection === 'asc' ? aVal - bVal : bVal - aVal
+        }
+
+        return 0
+      })
+    }
+
+    return filtered
+  }, [searchText, statusFilter, trades, sortField, sortDirection])
+
+  const handleSearchChange = (text: string) => {
+    setSearchText(text)
+    setCurrentPage(1)
+  }
+
+  const handleStatusChange = (status: 'All' | TradeStatus) => {
+    setStatusFilter(status)
+    setCurrentPage(1)
+  }
 
   const handleFieldChange = <K extends keyof TradeFormValues>(
     field: K,
@@ -114,58 +169,38 @@ function App() {
       !formValues.trader.trim() ||
       !formValues.sales.trim() ||
       !formValues.counterparty.trim() ||
-      !formValues.instrument.trim()
+      !formValues.symbol.trim()
     ) {
+      setFeedMessage('❌ Missing required fields')
       return
     }
 
     if (!Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(price) || price <= 0) {
+      setFeedMessage('❌ Invalid quantity or price')
       return
     }
 
     const now = new Date().toISOString()
 
     if (editingId) {
-      setTrades((currentTrades) =>
-        currentTrades.map((trade) =>
-          trade.id === editingId
-            ? {
-                ...trade,
-                trader: formValues.trader.trim(),
-                sales: formValues.sales.trim(),
-                counterparty: formValues.counterparty.trim(),
-                instrument: formValues.instrument.trim(),
-                side: formValues.side,
-                quantity,
-                price,
-                status: 'Amended',
-                updatedAt: now,
-              }
-            : trade,
-        ),
-      )
-      setFeedMessage(`Trade ${editingId} amended at ${formatTime(now)}`)
+      updateTrade(editingId, formValues)
+        .then(() => {
+          setFeedMessage(`Trade ${editingId} amended at ${formatTime(now)}`)
+          resetForm()
+        })
+        .catch((error) => {
+          setFeedMessage(`❌ ${error.message}`)
+        })
     } else {
-      const nextId = `TRD-${Math.floor(Math.random() * 9000 + 1000)}`
-      const nextTrade: Trade = {
-        id: nextId,
-        trader: formValues.trader.trim(),
-        sales: formValues.sales.trim(),
-        counterparty: formValues.counterparty.trim(),
-        instrument: formValues.instrument.trim(),
-        side: formValues.side,
-        quantity,
-        price,
-        status: 'Live',
-        createdAt: now,
-        updatedAt: now,
-      }
-
-      setTrades((currentTrades) => [nextTrade, ...currentTrades])
-      setFeedMessage(`New trade ${nextId} created at ${formatTime(now)}`)
+      createTrade(formValues)
+        .then((trade) => {
+          setFeedMessage(`New trade ${trade.id} created at ${formatTime(now)}`)
+          resetForm()
+        })
+        .catch((error) => {
+          setFeedMessage(`❌ ${error.message}`)
+        })
     }
-
-    resetForm()
   }
 
   const handleEdit = (trade: Trade) => {
@@ -174,7 +209,7 @@ function App() {
       trader: trade.trader,
       sales: trade.sales,
       counterparty: trade.counterparty,
-      instrument: trade.instrument,
+      symbol: trade.symbol,
       side: trade.side,
       quantity: String(trade.quantity),
       price: String(trade.price),
@@ -184,25 +219,41 @@ function App() {
   const handleCancel = (tradeId: string) => {
     const targetTrade = trades.find((trade) => trade.id === tradeId)
 
-    if (!targetTrade || targetTrade.status === 'Cancelled') {
+    if (!targetTrade || targetTrade.status === 'CANCELLED') {
       return
     }
 
     const now = new Date().toISOString()
 
-    setTrades((currentTrades) =>
-      currentTrades.map((trade) =>
-        trade.id === tradeId
-          ? {
-              ...trade,
-              status: 'Cancelled',
-              updatedAt: now,
-            }
-          : trade,
-      ),
-    )
+    cancelTrade(tradeId)
+      .then(() => {
+        setFeedMessage(`Trade ${tradeId} cancelled at ${formatTime(now)}`)
+      })
+      .catch((error) => {
+        setFeedMessage(`❌ ${error.message}`)
+      })
+  }
 
-    setFeedMessage(`Trade ${tradeId} cancelled at ${formatTime(now)}`)
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      // Toggle direction if same field
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      // New field - start with ascending
+      setSortField(field)
+      setSortDirection('asc')
+    }
+  }
+
+  const handleRefresh = () => {
+    fetchTrades()
+      .then(() => {
+        setFeedMessage('✓ Data refreshed from API')
+        setCurrentPage(1)
+      })
+      .catch((error: Error) => {
+        setFeedMessage(`❌ ${error.message}`)
+      })
   }
 
   return (
@@ -232,8 +283,15 @@ function App() {
           editingId={editingId}
           searchText={searchText}
           statusFilter={statusFilter}
-          onSearchChange={setSearchText}
-          onStatusChange={setStatusFilter}
+          currentPage={currentPage}
+          isLoading={isLoading}
+          sortField={sortField}
+          sortDirection={sortDirection}
+          onSearchChange={handleSearchChange}
+          onStatusChange={handleStatusChange}
+          onPageChange={setCurrentPage}
+          onSort={handleSort}
+          onRefresh={handleRefresh}
           onEdit={handleEdit}
           onCancel={handleCancel}
           onNewTrade={resetForm}

@@ -1,91 +1,54 @@
-export type TradeSide = 'Buy' | 'Sell'
-export type TradeStatus = 'Live' | 'Amended' | 'Cancelled'
+import { generateMockTrades } from '../utils/generateMockTrades'
+
+export type TradeSide = 'BUY' | 'SELL'
+export type TradeStatus = 'ACTIVE' | 'AMENDED' | 'CANCELLED'
 
 export type Trade = {
   id: string
-  trader: string
-  sales: string
-  counterparty: string
-  instrument: string
-  side: TradeSide
+  symbol: string
   quantity: number
   price: number
+  side: TradeSide
+  trader: string
+  tradeDate: string
   status: TradeStatus
-  createdAt: string
-  updatedAt: string
+  // Extended fields
+  sales: string
+  counterparty: string
 }
 
 export type TradeFormValues = {
   trader: string
   sales: string
   counterparty: string
-  instrument: string
+  symbol: string
   side: TradeSide
   quantity: string
   price: string
 }
 
-export const initialTrades: Trade[] = [
-  {
-    id: 'TRD-1001',
-    trader: 'A. Foster',
-    sales: 'L. Chen',
-    counterparty: 'North Ridge Capital',
-    instrument: 'EUR/USD',
-    side: 'Buy',
-    quantity: 250000,
-    price: 1.0834,
-    status: 'Live',
-    createdAt: '2026-08-31T09:15:00.000Z',
-    updatedAt: '2026-08-31T09:15:00.000Z',
-  },
-  {
-    id: 'TRD-1002',
-    trader: 'M. Patel',
-    sales: 'S. Hall',
-    counterparty: 'Blue Harbor Asset Mgmt',
-    instrument: 'GBP/JPY',
-    side: 'Sell',
-    quantity: 180000,
-    price: 198.42,
-    status: 'Live',
-    createdAt: '2026-08-31T09:42:00.000Z',
-    updatedAt: '2026-08-31T09:42:00.000Z',
-  },
-  {
-    id: 'TRD-1003',
-    trader: 'R. Singh',
-    sales: 'H. Lewis',
-    counterparty: 'Lumen Advisory',
-    instrument: 'US 10Y',
-    side: 'Buy',
-    quantity: 400,
-    price: 113.86,
-    status: 'Amended',
-    createdAt: '2026-08-31T10:05:00.000Z',
-    updatedAt: '2026-08-31T10:12:30.000Z',
-  },
-  {
-    id: 'TRD-1004',
-    trader: 'K. Walsh',
-    sales: 'P. James',
-    counterparty: 'Orchard Partners',
-    instrument: 'AAPL',
-    side: 'Sell',
-    quantity: 1500,
-    price: 221.65,
-    status: 'Cancelled',
-    createdAt: '2026-08-31T08:55:00.000Z',
-    updatedAt: '2026-08-31T10:20:45.000Z',
-  },
-]
+export type SortField =
+  | 'id'
+  | 'symbol'
+  | 'side'
+  | 'quantity'
+  | 'price'
+  | 'notional'
+  | 'trader'
+  | 'status'
+  | 'tradeDate'
+
+export type SortDirection = 'asc' | 'desc'
+
+
+export const initialTrades: Trade[] = generateMockTrades(150)
 
 export const emptyForm: TradeFormValues = {
   trader: '',
   sales: '',
   counterparty: '',
-  instrument: '',
-  side: 'Buy',
+  symbol: '',
+  side: 'BUY',
   quantity: '',
   price: '',
 }

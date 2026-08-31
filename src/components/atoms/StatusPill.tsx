@@ -5,5 +5,18 @@ type StatusPillProps = {
 }
 
 export function StatusPill({ status }: StatusPillProps) {
-  return <span className={`status-pill ${status.toLowerCase()}`}>{status}</span>
+  const getClassAndLabel = (status: TradeStatus) => {
+    switch (status) {
+      case 'ACTIVE':
+        return { className: 'active', label: 'Active' }
+      case 'AMENDED':
+        return { className: 'amended', label: 'Amended' }
+      case 'CANCELLED':
+        return { className: 'cancelled', label: 'Cancelled' }
+    }
+  }
+
+  const { className, label } = getClassAndLabel(status)
+
+  return <span className={`status-pill ${className}`}>{label}</span>
 }

@@ -1,18 +1,32 @@
-import type { Trade, TradeStatus } from '../../types/trade'
+import type { Trade, TradeStatus, SortField, SortDirection } from '../../types/trade'
 import { SidePill } from '../atoms/SidePill'
 import { StatusPill } from '../atoms/StatusPill'
 import { calculateNotional, formatMoney, formatTime } from '../../types/trade'
+
+const ITEMS_PER_PAGE = 7;
 
 type TradeTableProps = {
   trades: Trade[]
   editingId: string | null
   searchText: string
   statusFilter: 'All' | TradeStatus
+  currentPage: number
+  isLoading: boolean
+  sortField: SortField | null
+  sortDirection: SortDirection | null
   onSearchChange: (value: string) => void
   onStatusChange: (value: 'All' | TradeStatus) => void
+  onPageChange: (page: number) => void
+  onSort: (field: SortField) => void
+  onRefresh: () => void
   onEdit: (trade: Trade) => void
   onCancel: (tradeId: string) => void
   onNewTrade: () => void
+}
+
+const getSortIndicator = (field: SortField, sortField: SortField | null, sortDir: SortDirection | null) => {
+  if (sortField !== field) return ' ◇'
+  return sortDir === 'asc' ? ' ▲' : ' ▼'
 }
 
 export function TradeTable({
@@ -20,19 +34,40 @@ export function TradeTable({
   editingId,
   searchText,
   statusFilter,
+  currentPage,
+  isLoading,
+  sortField,
+  sortDirection,
   onSearchChange,
   onStatusChange,
+  onPageChange,
+  onSort,
+  onRefresh,
   onEdit,
   onCancel,
   onNewTrade,
 }: TradeTableProps) {
+  const totalPages = Math.ceil(trades.length / ITEMS_PER_PAGE)
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+  const paginatedTrades = trades.slice(startIndex, startIndex + ITEMS_PER_PAGE)
   return (
     <section className="table-panel" aria-label="Trade list">
       <div className="section-heading">
         <h2>Trades</h2>
-        <button type="button" className="secondary-button" onClick={onNewTrade}>
-          New trade
-        </button>
+        <div className="heading-actions">
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={onRefresh}
+            disabled={isLoading}
+            title="Refresh data from API"
+          >
+            {isLoading ? '⟳ Refreshing...' : '⟳ Refresh'}
+          </button>
+          <button type="button" className="secondary-button" onClick={onNewTrade}>
+            New trade
+          </button>
+        </div>
       </div>
 
       <div className="toolbar">
@@ -45,7 +80,7 @@ export function TradeTable({
             type="search"
             value={searchText}
             onChange={(event) => onSearchChange(event.target.value)}
-            placeholder="Search trade, counterparty, instrument..."
+            placeholder="Search trade, counterparty, symbol..."
           />
         </div>
 
@@ -56,9 +91,9 @@ export function TradeTable({
             onChange={(event) => onStatusChange(event.target.value as 'All' | TradeStatus)}
           >
             <option value="All">All</option>
-            <option value="Live">Live</option>
-            <option value="Amended">Amended</option>
-            <option value="Cancelled">Cancelled</option>
+            <option value="ACTIVE">Active</option>
+            <option value="AMENDED">Amended</option>
+            <option value="CANCELLED">Cancelled</option>
           </select>
         </label>
       </div>
@@ -67,27 +102,108 @@ export function TradeTable({
         <table>
           <thead>
             <tr>
-              <th>ID</th>
-              <th>Trader</th>
+              <th>
+                <button
+                  type="button"
+                  className="sort-header"
+                  onClick={() => onSort('id')}
+                  title="Sort by ID"
+                >
+                  ID{getSortIndicator('id', sortField, sortDirection)}
+                </button>
+              </th>
+              <th>
+                <button
+                  type="button"
+                  className="sort-header"
+                  onClick={() => onSort('trader')}
+                  title="Sort by Trader"
+                >
+                  Trader{getSortIndicator('trader', sortField, sortDirection)}
+                </button>
+              </th>
               <th>Counterparty</th>
-              <th>Instrument</th>
-              <th>Side</th>
-              <th>Qty</th>
-              <th>Price</th>
-              <th>Notional</th>
-              <th>Status</th>
-              <th>Updated</th>
+              <th>
+                <button
+                  type="button"
+                  className="sort-header"
+                  onClick={() => onSort('symbol')}
+                  title="Sort by Symbol"
+                >
+                  Symbol{getSortIndicator('symbol', sortField, sortDirection)}
+                </button>
+              </th>
+              <th>
+                <button
+                  type="button"
+                  className="sort-header"
+                  onClick={() => onSort('side')}
+                  title="Sort by Side"
+                >
+                  Side{getSortIndicator('side', sortField, sortDirection)}
+                </button>
+              </th>
+              <th>
+                <button
+                  type="button"
+                  className="sort-header"
+                  onClick={() => onSort('quantity')}
+                  title="Sort by Quantity"
+                >
+                  Qty{getSortIndicator('quantity', sortField, sortDirection)}
+                </button>
+              </th>
+              <th>
+                <button
+                  type="button"
+                  className="sort-header"
+                  onClick={() => onSort('price')}
+                  title="Sort by Price"
+                >
+                  Price{getSortIndicator('price', sortField, sortDirection)}
+                </button>
+              </th>
+              <th>
+                <button
+                  type="button"
+                  className="sort-header"
+                  onClick={() => onSort('notional')}
+                  title="Sort by Notional"
+                >
+                  Notional{getSortIndicator('notional', sortField, sortDirection)}
+                </button>
+              </th>
+              <th>
+                <button
+                  type="button"
+                  className="sort-header"
+                  onClick={() => onSort('status')}
+                  title="Sort by Status"
+                >
+                  Status{getSortIndicator('status', sortField, sortDirection)}
+                </button>
+              </th>
+              <th>
+                <button
+                  type="button"
+                  className="sort-header"
+                  onClick={() => onSort('tradeDate')}
+                  title="Sort by Trade Date"
+                >
+                  Trade Date{getSortIndicator('tradeDate', sortField, sortDirection)}
+                </button>
+              </th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {trades.length > 0 ? (
-              trades.map((trade) => (
+            {paginatedTrades.length > 0 ? (
+              paginatedTrades.map((trade) => (
                 <tr key={trade.id} className={editingId === trade.id ? 'selected-row' : ''}>
                   <td>{trade.id}</td>
                   <td>{trade.trader}</td>
                   <td>{trade.counterparty}</td>
-                  <td>{trade.instrument}</td>
+                  <td>{trade.symbol}</td>
                   <td>
                     <SidePill side={trade.side} />
                   </td>
@@ -97,7 +213,7 @@ export function TradeTable({
                   <td>
                     <StatusPill status={trade.status} />
                   </td>
-                  <td>{formatTime(trade.updatedAt)}</td>
+                  <td>{formatTime(trade.tradeDate)}</td>
                   <td className="actions-cell">
                     <button type="button" className="action-button" onClick={() => onEdit(trade)}>
                       Amend
@@ -106,7 +222,7 @@ export function TradeTable({
                       type="button"
                       className="cancel-button"
                       onClick={() => onCancel(trade.id)}
-                      disabled={trade.status === 'Cancelled'}
+                      disabled={trade.status === 'CANCELLED'}
                     >
                       Cancel
                     </button>
@@ -123,6 +239,32 @@ export function TradeTable({
           </tbody>
         </table>
       </div>
+
+      {trades.length > 0 && (
+        <div className="pagination-controls">
+          <button
+            type="button"
+            className="pagination-button"
+            onClick={() => onPageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+          >
+            ← Previous
+          </button>
+
+          <span className="pagination-info">
+            Page {currentPage} of {totalPages}
+          </span>
+
+          <button
+            type="button"
+            className="pagination-button"
+            onClick={() => onPageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+          >
+            Next →
+          </button>
+        </div>
+      )}
     </section>
   )
 }
