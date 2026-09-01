@@ -4,13 +4,16 @@ import { MetricCard } from './components/molecules/MetricCard'
 import { TradeForm } from './components/organisms/TradeForm'
 import { TradeTable } from './components/organisms/TradeTable'
 import { useTrades } from './hooks/useTrades'
+import { TradeServiceError } from './services/tradeService'
 import {
+  type ApiValidationDetails,
   calculateNotional,
   emptyForm,
   formatMoney,
   formatTime,
   initialTrades,
   type Trade,
+  type TradeFormField,
   type TradeFormValues,
   type TradeStatus,
   type SortField,
@@ -18,16 +21,25 @@ import {
 } from './types/trade'
 
 function App() {
-  const { trades, isLoading, createTrade, updateTrade, cancelTrade, fetchTrades } =
+  const { trades, isLoading, error, createTrade, updateTrade, cancelTrade, fetchTrades } =
     useTrades(initialTrades)
   const [formValues, setFormValues] = useState<TradeFormValues>(emptyForm)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<TradeFormField, string>>>({})
+  const [formError, setFormError] = useState<string | null>(null)
   const [feedMessage, setFeedMessage] = useState('Market feed connected')
   const [statusFilter, setStatusFilter] = useState<'All' | TradeStatus>('All')
   const [searchText, setSearchText] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [sortField, setSortField] = useState<SortField | null>(null)
   const [sortDirection, setSortDirection] = useState<SortDirection | null>(null)
+
+  useEffect(() => {
+    fetchTrades().catch((fetchError) => {
+      const message = fetchError instanceof Error ? fetchError.message : 'Failed to fetch trades'
+      setFeedMessage(`❌ ${message}`)
+    })
+  }, [fetchTrades])
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -148,35 +160,79 @@ function App() {
     field: K,
     value: TradeFormValues[K],
   ) => {
+    const fieldKey = field as TradeFormField
+
     setFormValues((current) => ({
       ...current,
       [field]: value,
     }))
+    setFieldErrors((current) => ({ ...current, [fieldKey]: undefined }))
+    setFormError(null)
   }
 
   const resetForm = () => {
     setEditingId(null)
     setFormValues(emptyForm)
+    setFieldErrors({})
+    setFormError(null)
+  }
+
+  const applyBackendValidationErrors = (serviceError: TradeServiceError) => {
+    if (serviceError.statusCode !== 400) {
+      return
+    }
+
+    const details = serviceError.details as ApiValidationDetails | undefined
+    const backendFieldErrors = details?.fieldErrors
+
+    if (!backendFieldErrors) {
+      setFormError(serviceError.message)
+      return
+    }
+
+    const nextErrors: Partial<Record<TradeFormField, string>> = {}
+
+    for (const key of Object.keys(backendFieldErrors) as TradeFormField[]) {
+      const messages = backendFieldErrors[key]
+      if (Array.isArray(messages) && messages.length > 0) {
+        nextErrors[key] = messages[0]
+      }
+    }
+
+    setFieldErrors(nextErrors)
+    const formLevelMessage = details?.formErrors?.[0]
+    setFormError(formLevelMessage ?? serviceError.message)
+  }
+
+  const validateClientSide = (): boolean => {
+    const nextErrors: Partial<Record<TradeFormField, string>> = {}
+
+    if (!formValues.trader.trim()) nextErrors.trader = 'Trader is required'
+    if (!formValues.sales.trim()) nextErrors.sales = 'Sales is required'
+    if (!formValues.counterparty.trim()) nextErrors.counterparty = 'Counterparty is required'
+    if (!formValues.symbol.trim()) nextErrors.symbol = 'Symbol is required'
+
+    const quantity = Number(formValues.quantity)
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      nextErrors.quantity = 'Quantity must be a positive number'
+    }
+
+    const price = Number(formValues.price)
+    if (!Number.isFinite(price) || price <= 0) {
+      nextErrors.price = 'Price must be a positive number'
+    }
+
+    setFieldErrors(nextErrors)
+    setFormError(null)
+
+    return Object.keys(nextErrors).length === 0
   }
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
-    const quantity = Number(formValues.quantity)
-    const price = Number(formValues.price)
-
-    if (
-      !formValues.trader.trim() ||
-      !formValues.sales.trim() ||
-      !formValues.counterparty.trim() ||
-      !formValues.symbol.trim()
-    ) {
-      setFeedMessage('❌ Missing required fields')
-      return
-    }
-
-    if (!Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(price) || price <= 0) {
-      setFeedMessage('❌ Invalid quantity or price')
+    if (!validateClientSide()) {
+      setFeedMessage('❌ Please fix the form errors and resubmit')
       return
     }
 
@@ -185,19 +241,29 @@ function App() {
     if (editingId) {
       updateTrade(editingId, formValues)
         .then(() => {
+          setFieldErrors({})
+          setFormError(null)
           setFeedMessage(`Trade ${editingId} amended at ${formatTime(now)}`)
           resetForm()
         })
         .catch((error) => {
+          if (error instanceof TradeServiceError) {
+            applyBackendValidationErrors(error)
+          }
           setFeedMessage(`❌ ${error.message}`)
         })
     } else {
       createTrade(formValues)
         .then((trade) => {
+          setFieldErrors({})
+          setFormError(null)
           setFeedMessage(`New trade ${trade.id} created at ${formatTime(now)}`)
           resetForm()
         })
         .catch((error) => {
+          if (error instanceof TradeServiceError) {
+            applyBackendValidationErrors(error)
+          }
           setFeedMessage(`❌ ${error.message}`)
         })
     }
@@ -205,6 +271,8 @@ function App() {
 
   const handleEdit = (trade: Trade) => {
     setEditingId(trade.id)
+    setFieldErrors({})
+    setFormError(null)
     setFormValues({
       trader: trade.trader,
       sales: trade.sales,
@@ -223,6 +291,11 @@ function App() {
       return
     }
 
+    const confirmed = window.confirm(`Cancel trade ${tradeId}?`)
+    if (!confirmed) {
+      return
+    }
+
     const now = new Date().toISOString()
 
     cancelTrade(tradeId)
@@ -230,6 +303,10 @@ function App() {
         setFeedMessage(`Trade ${tradeId} cancelled at ${formatTime(now)}`)
       })
       .catch((error) => {
+        if (error instanceof TradeServiceError && error.statusCode === 404) {
+          setFeedMessage(`❌ Trade ${tradeId} not found`)
+          return
+        }
         setFeedMessage(`❌ ${error.message}`)
       })
   }
@@ -252,6 +329,10 @@ function App() {
         setCurrentPage(1)
       })
       .catch((error: Error) => {
+        if (error instanceof TradeServiceError && error.statusCode === 404) {
+          setFeedMessage('❌ Requested resource was not found')
+          return
+        }
         setFeedMessage(`❌ ${error.message}`)
       })
   }
@@ -285,6 +366,7 @@ function App() {
           statusFilter={statusFilter}
           currentPage={currentPage}
           isLoading={isLoading}
+          fetchError={error}
           sortField={sortField}
           sortDirection={sortDirection}
           onSearchChange={handleSearchChange}
@@ -300,6 +382,8 @@ function App() {
         <TradeForm
           formValues={formValues}
           editingId={editingId}
+          fieldErrors={fieldErrors}
+          formError={formError}
           onFieldChange={handleFieldChange}
           onSubmit={handleSubmit}
           onReset={resetForm}

@@ -12,6 +12,7 @@ type TradeTableProps = {
   statusFilter: 'All' | TradeStatus
   currentPage: number
   isLoading: boolean
+  fetchError: string | null
   sortField: SortField | null
   sortDirection: SortDirection | null
   onSearchChange: (value: string) => void
@@ -36,6 +37,7 @@ export function TradeTable({
   statusFilter,
   currentPage,
   isLoading,
+  fetchError,
   sortField,
   sortDirection,
   onSearchChange,
@@ -197,7 +199,19 @@ export function TradeTable({
             </tr>
           </thead>
           <tbody>
-            {paginatedTrades.length > 0 ? (
+            {isLoading && paginatedTrades.length === 0 ? (
+              <tr>
+                <td colSpan={11} className="empty-state">
+                  Loading trades...
+                </td>
+              </tr>
+            ) : fetchError ? (
+              <tr>
+                <td colSpan={11} className="empty-state">
+                  Failed to load trades: {fetchError}
+                </td>
+              </tr>
+            ) : paginatedTrades.length > 0 ? (
               paginatedTrades.map((trade) => (
                 <tr key={trade.id} className={editingId === trade.id ? 'selected-row' : ''}>
                   <td>{trade.id}</td>

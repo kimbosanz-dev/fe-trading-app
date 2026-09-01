@@ -394,12 +394,33 @@ tbody tr:hover {
   gap: 16px;
 }
 
+.form-error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  background: rgba(248, 113, 113, 0.1);
+  color: #fecaca;
+  font-size: 0.82rem;
+}
+
 .trade-form label {
   display: flex;
   flex-direction: column;
   gap: 8px;
   color: var(--muted);
   font-size: 0.82rem;
+}
+
+.trade-form .field-invalid input,
+.trade-form .field-invalid select {
+  border-color: rgba(248, 113, 113, 0.6);
+}
+
+.field-error {
+  color: #fecaca;
+  font-size: 0.76rem;
+  line-height: 1.2;
 }
 
 .field-row {

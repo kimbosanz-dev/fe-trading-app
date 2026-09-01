@@ -1,7 +1,14 @@
-import { generateMockTrades } from '../utils/generateMockTrades'
-
 export type TradeSide = 'BUY' | 'SELL'
 export type TradeStatus = 'ACTIVE' | 'AMENDED' | 'CANCELLED'
+
+export type TradeFormField =
+  | 'trader'
+  | 'sales'
+  | 'counterparty'
+  | 'symbol'
+  | 'side'
+  | 'quantity'
+  | 'price'
 
 export type Trade = {
   id: string
@@ -23,8 +30,19 @@ export type TradeFormValues = {
   counterparty: string
   symbol: string
   side: TradeSide
-  quantity: string
-  price: string
+  quantity: string | number
+  price: string | number
+}
+
+export type ApiErrorResponse = {
+  message: string
+  code?: string
+  details?: unknown
+}
+
+export type ApiValidationDetails = {
+  formErrors?: string[]
+  fieldErrors?: Partial<Record<TradeFormField, string[]>>
 }
 
 export type SortField =
@@ -41,7 +59,7 @@ export type SortField =
 export type SortDirection = 'asc' | 'desc'
 
 
-export const initialTrades: Trade[] = generateMockTrades(150)
+export const initialTrades: Trade[] = []
 
 export const emptyForm: TradeFormValues = {
   trader: '',

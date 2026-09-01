@@ -21,11 +21,12 @@ export function useTrades(initialTrades: Trade[]) {
   const fetchTrades = useCallback(async () => {
     setState((prev) => ({ ...prev, isLoading: true, error: null }))
     try {
-      const trades = await tradeService.fetchTrades()
+      const trades = await tradeService.listTrades()
       setState({ trades, isLoading: false, error: null })
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to fetch trades'
-      setState({ trades: [], isLoading: false, error: message })
+      setState((prev) => ({ ...prev, isLoading: false, error: message }))
+      throw error
     }
   }, [])
 
@@ -57,7 +58,7 @@ export function useTrades(initialTrades: Trade[]) {
   const updateTrade = useCallback(
     async (id: string, formValues: TradeFormValues) => {
       try {
-        const updatedTrade = await tradeService.updateTrade(id, formValues)
+        const updatedTrade = await tradeService.amendTrade(id, formValues)
         setState((prev) => ({
           ...prev,
           trades: prev.trades.map((t) => (t.id === id ? updatedTrade : t)),

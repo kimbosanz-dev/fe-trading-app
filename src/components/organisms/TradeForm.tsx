@@ -1,9 +1,11 @@
 import type { FormEvent } from 'react'
-import type { TradeFormValues, TradeSide } from '../../types/trade'
+import type { TradeFormField, TradeFormValues, TradeSide } from '../../types/trade'
 
 type TradeFormProps = {
   formValues: TradeFormValues
   editingId: string | null
+  fieldErrors: Partial<Record<TradeFormField, string>>
+  formError: string | null
   onFieldChange: <K extends keyof TradeFormValues>(field: K, value: TradeFormValues[K]) => void
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
   onReset: () => void
@@ -12,6 +14,8 @@ type TradeFormProps = {
 export function TradeForm({
   formValues,
   editingId,
+  fieldErrors,
+  formError,
   onFieldChange,
   onSubmit,
   onReset,
@@ -23,7 +27,9 @@ export function TradeForm({
       </div>
 
       <form onSubmit={onSubmit} className="trade-form">
-        <label>
+        {formError ? <p className="form-error" role="alert">{formError}</p> : null}
+
+        <label className={fieldErrors.trader ? 'field-invalid' : ''}>
           Trader
           <input
             type="text"
@@ -31,9 +37,10 @@ export function TradeForm({
             onChange={(event) => onFieldChange('trader', event.target.value)}
             placeholder="A. Foster"
           />
+          {fieldErrors.trader ? <span className="field-error">{fieldErrors.trader}</span> : null}
         </label>
 
-        <label>
+        <label className={fieldErrors.sales ? 'field-invalid' : ''}>
           Sales
           <input
             type="text"
@@ -41,9 +48,10 @@ export function TradeForm({
             onChange={(event) => onFieldChange('sales', event.target.value)}
             placeholder="L. Chen"
           />
+          {fieldErrors.sales ? <span className="field-error">{fieldErrors.sales}</span> : null}
         </label>
 
-        <label>
+        <label className={fieldErrors.counterparty ? 'field-invalid' : ''}>
           Counterparty
           <input
             type="text"
@@ -51,9 +59,12 @@ export function TradeForm({
             onChange={(event) => onFieldChange('counterparty', event.target.value)}
             placeholder="North Ridge Capital"
           />
+          {fieldErrors.counterparty ? (
+            <span className="field-error">{fieldErrors.counterparty}</span>
+          ) : null}
         </label>
 
-        <label>
+        <label className={fieldErrors.symbol ? 'field-invalid' : ''}>
           Symbol
           <input
             type="text"
@@ -61,10 +72,11 @@ export function TradeForm({
             onChange={(event) => onFieldChange('symbol', event.target.value)}
             placeholder="AAPL"
           />
+          {fieldErrors.symbol ? <span className="field-error">{fieldErrors.symbol}</span> : null}
         </label>
 
         <div className="field-row">
-          <label>
+          <label className={fieldErrors.side ? 'field-invalid' : ''}>
             Side
             <select
               value={formValues.side}
@@ -73,9 +85,10 @@ export function TradeForm({
               <option value="BUY">Buy</option>
               <option value="SELL">Sell</option>
             </select>
+            {fieldErrors.side ? <span className="field-error">{fieldErrors.side}</span> : null}
           </label>
 
-          <label>
+          <label className={fieldErrors.quantity ? 'field-invalid' : ''}>
             Quantity
             <input
               type="number"
@@ -85,10 +98,11 @@ export function TradeForm({
               onChange={(event) => onFieldChange('quantity', event.target.value)}
               placeholder="250000"
             />
+            {fieldErrors.quantity ? <span className="field-error">{fieldErrors.quantity}</span> : null}
           </label>
         </div>
 
-        <label>
+        <label className={fieldErrors.price ? 'field-invalid' : ''}>
           Price
           <input
             type="number"
@@ -98,6 +112,7 @@ export function TradeForm({
             onChange={(event) => onFieldChange('price', event.target.value)}
             placeholder="1.0834"
           />
+          {fieldErrors.price ? <span className="field-error">{fieldErrors.price}</span> : null}
         </label>
 
         <div className="button-row">

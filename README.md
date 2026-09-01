@@ -1,75 +1,77 @@
-# React + TypeScript + Vite
+# Trade Blotter Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + TypeScript + Vite frontend for a trade blotter UI.
 
-Currently, two official plugins are available:
+## Prerequisites
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Node.js 20+ (recommended LTS)
+- npm 10+
+- Backend API running locally (default: `http://localhost:3001/api`)
 
-## React Compiler
+## Setup after cloning
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+1. Clone and enter the repository:
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+git clone <your-repo-url>
+cd fe-trading-app-assessment
 ```
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+2. Install dependencies:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+npm install
 ```
+
+3. Create your local environment file:
+
+```bash
+cp .env.example .env
+```
+
+4. Confirm API base URL in `.env`:
+
+```env
+VITE_API_BASE_URL=http://localhost:3001/api
+```
+
+5. Start the frontend:
+
+```bash
+npm run dev
+```
+
+6. Open the app:
+
+- `http://localhost:5173`
+
+## Available scripts
+
+- `npm run dev` – Start Vite dev server
+- `npm run build` – Type-check and production build
+- `npm run preview` – Preview production build locally
+- `npm run lint` – Run ESLint
+
+## Backend integration notes
+
+- The frontend expects raw JSON responses:
+  - `GET /trades` → `Trade[]`
+  - `GET /trades/:id` → `Trade`
+  - `POST /trades` → `Trade`
+  - `PATCH /trades/:id` → `Trade`
+  - `PATCH /trades/:id/cancel` → `Trade`
+- API errors are expected as:
+
+```ts
+type ApiError = {
+  message: string
+  code?: string
+  details?: unknown
+}
+```
+
+## Troubleshooting
+
+- If trades do not load, verify backend is running on `http://localhost:3001`.
+- If requests fail in browser, check backend CORS allows `http://localhost:5173`.
+- If environment changes are not picked up, restart `npm run dev`.
