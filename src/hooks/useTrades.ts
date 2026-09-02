@@ -37,11 +37,17 @@ export function useTrades(initialTrades: Trade[]) {
     async (formValues: TradeFormValues) => {
       try {
         const newTrade = await tradeService.createTrade(formValues)
-        setState((prev) => ({
-          ...prev,
-          trades: [newTrade, ...prev.trades],
-          error: null,
-        }))
+        setState((prev) => {
+          // Guard against a duplicate row: the backend's SSE broadcast for
+          // this same creation can arrive (via upsertTrade) before this
+          // POST response resolves, since they're separate connections.
+          const alreadyPresent = prev.trades.some((t) => t.id === newTrade.id)
+          const trades = alreadyPresent
+            ? prev.trades.map((t) => (t.id === newTrade.id ? newTrade : t))
+            : [newTrade, ...prev.trades]
+
+          return { ...prev, trades, error: null }
+        })
         return newTrade
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to create trade'
@@ -96,6 +102,21 @@ export function useTrades(initialTrades: Trade[]) {
     [],
   )
 
+  /**
+   * Insert or replace a trade in local state (e.g. from a live SSE update),
+   * without making a network request.
+   */
+  const upsertTrade = useCallback((trade: Trade) => {
+    setState((prev) => {
+      const exists = prev.trades.some((t) => t.id === trade.id)
+      const trades = exists
+        ? prev.trades.map((t) => (t.id === trade.id ? trade : t))
+        : [trade, ...prev.trades]
+
+      return { ...prev, trades }
+    })
+  }, [])
+
   return {
     trades: state.trades,
     isLoading: state.isLoading,
@@ -104,5 +125,6 @@ export function useTrades(initialTrades: Trade[]) {
     createTrade,
     updateTrade,
     cancelTrade,
+    upsertTrade,
   }
 }

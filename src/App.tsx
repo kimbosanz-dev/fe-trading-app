@@ -1,9 +1,11 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react'
 import './App.css'
 import { MetricCard } from './components/molecules/MetricCard'
+import { ConfirmDialog } from './components/molecules/ConfirmDialog'
 import { TradeForm } from './components/organisms/TradeForm'
 import { TradeTable } from './components/organisms/TradeTable'
 import { useTrades } from './hooks/useTrades'
+import { useTradeStream } from './hooks/useTradeStream'
 import { TradeServiceError } from './services/tradeService'
 import {
   type ApiValidationDetails,
@@ -21,13 +23,15 @@ import {
 } from './types/trade'
 
 function App() {
-  const { trades, isLoading, error, createTrade, updateTrade, cancelTrade, fetchTrades } =
+  const { trades, isLoading, error, createTrade, updateTrade, cancelTrade, fetchTrades, upsertTrade } =
     useTrades(initialTrades)
   const [formValues, setFormValues] = useState<TradeFormValues>(emptyForm)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<TradeFormField, string>>>({})
   const [formError, setFormError] = useState<string | null>(null)
   const [feedMessage, setFeedMessage] = useState('Market feed connected')
+  const [streamHighlightId, setStreamHighlightId] = useState<string | null>(null)
+  const [pendingCancelTrade, setPendingCancelTrade] = useState<Trade | null>(null)
   const [statusFilter, setStatusFilter] = useState<'All' | TradeStatus>('All')
   const [searchText, setSearchText] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
@@ -40,6 +44,24 @@ function App() {
       setFeedMessage(`❌ ${message}`)
     })
   }, [fetchTrades])
+
+  useTradeStream((eventType, trade) => {
+    upsertTrade(trade)
+
+    setStreamHighlightId(trade.id)
+    window.setTimeout(() => {
+      setStreamHighlightId((current) => (current === trade.id ? null : current))
+    }, 2000)
+
+    const action =
+      eventType === 'TRADE_CREATED'
+        ? 'created'
+        : eventType === 'TRADE_AMENDED'
+          ? 'amended'
+          : 'cancelled'
+
+    setFeedMessage(`🔴 Live: trade ${trade.id} ${action}`)
+  })
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -291,12 +313,22 @@ function App() {
       return
     }
 
-    const confirmed = window.confirm(`Cancel trade ${tradeId}?`)
-    if (!confirmed) {
+    setPendingCancelTrade(targetTrade)
+  }
+
+  const dismissCancelDialog = () => {
+    setPendingCancelTrade(null)
+  }
+
+  const confirmCancelTrade = () => {
+    if (!pendingCancelTrade) {
       return
     }
 
+    const tradeId = pendingCancelTrade.id
     const now = new Date().toISOString()
+
+    setPendingCancelTrade(null)
 
     cancelTrade(tradeId)
       .then(() => {
@@ -367,6 +399,7 @@ function App() {
           currentPage={currentPage}
           isLoading={isLoading}
           fetchError={error}
+          highlightTradeId={streamHighlightId}
           sortField={sortField}
           sortDirection={sortDirection}
           onSearchChange={handleSearchChange}
@@ -389,6 +422,27 @@ function App() {
           onReset={resetForm}
         />
       </main>
+
+      <ConfirmDialog
+        open={pendingCancelTrade !== null}
+        title="Cancel this trade?"
+        description={
+          pendingCancelTrade ? (
+            <>
+              You're about to cancel <strong className="dialog-highlight">{pendingCancelTrade.id}</strong>{' '}
+              for <strong className="dialog-highlight">{pendingCancelTrade.symbol}</strong> (
+              {pendingCancelTrade.quantity.toLocaleString()} @ {pendingCancelTrade.price.toFixed(2)}
+              ).
+            </>
+          ) : undefined
+        }
+        note="This sets the trade status to CANCELLED and cannot be undone."
+        confirmLabel="Cancel trade"
+        cancelLabel="Keep trade"
+        variant="danger"
+        onConfirm={confirmCancelTrade}
+        onCancel={dismissCancelDialog}
+      />
     </div>
   )
 }

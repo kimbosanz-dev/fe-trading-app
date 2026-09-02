@@ -93,6 +93,13 @@ class TradeService {
       method: 'PATCH',
     })
   }
+
+  /**
+   * GET /api/trades/stream - Server-Sent Events URL for live trade updates
+   */
+  getStreamUrl(): string {
+    return `${this.baseUrl}/trades/stream`
+  }
 }
 
 export const tradeService = new TradeService()

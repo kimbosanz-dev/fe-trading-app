@@ -13,6 +13,7 @@ type TradeTableProps = {
   currentPage: number
   isLoading: boolean
   fetchError: string | null
+  highlightTradeId?: string | null
   sortField: SortField | null
   sortDirection: SortDirection | null
   onSearchChange: (value: string) => void
@@ -38,6 +39,7 @@ export function TradeTable({
   currentPage,
   isLoading,
   fetchError,
+  highlightTradeId,
   sortField,
   sortDirection,
   onSearchChange,
@@ -213,7 +215,15 @@ export function TradeTable({
               </tr>
             ) : paginatedTrades.length > 0 ? (
               paginatedTrades.map((trade) => (
-                <tr key={trade.id} className={editingId === trade.id ? 'selected-row' : ''}>
+                <tr
+                  key={trade.id}
+                  className={[
+                    editingId === trade.id ? 'selected-row' : '',
+                    highlightTradeId === trade.id ? 'stream-flash' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                >
                   <td>{trade.id}</td>
                   <td>{trade.trader}</td>
                   <td>{trade.counterparty}</td>

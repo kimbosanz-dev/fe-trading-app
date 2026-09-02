@@ -45,6 +45,13 @@ export type ApiValidationDetails = {
   fieldErrors?: Partial<Record<TradeFormField, string[]>>
 }
 
+export type TradeStreamEventType = 'TRADE_CREATED' | 'TRADE_AMENDED' | 'TRADE_CANCELLED'
+
+export type TradeStreamPayload = {
+  type: string
+  trade: Trade
+}
+
 export type SortField =
   | 'id'
   | 'symbol'
