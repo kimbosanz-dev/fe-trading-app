@@ -2,11 +2,13 @@
 
 React + TypeScript + Vite frontend for a trade blotter UI.
 
+> **Note:** This frontend requires the companion backend API to be cloned and running separately: [be-trading-app](https://github.com/kimbosanz-dev/be-trading-app.git). Refer to that repo's own README for its setup/run instructions — steps are not duplicated here.
+
 ## Prerequisites
 
 - Node.js 20+ (recommended LTS)
 - npm 10+
-- Backend API running locally (default: `http://localhost:3001/api`)
+- Backend API running locally (default: `http://localhost:3001/api`) — see note above
 
 ## Setup after cloning
 
@@ -72,6 +74,6 @@ type ApiError = {
 
 ## Troubleshooting
 
-- If trades do not load, verify backend is running on `http://localhost:3001`.
+- If trades do not load, verify the backend repo is cloned and running on `http://localhost:3001` (see note at the top of this README).
 - If requests fail in browser, check backend CORS allows `http://localhost:5173`.
 - If environment changes are not picked up, restart `npm run dev`.
